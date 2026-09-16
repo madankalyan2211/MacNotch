@@ -19,8 +19,8 @@ public struct ExpandedIslandView: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            // Spacer for physical MacBook notch camera clearance
-            Spacer()
+            // Color.clear for physical MacBook notch camera clearance (fixed height, never expands)
+            Color.clear
                 .frame(height: notchHeight + 4)
             
             // Full Interactive Surface

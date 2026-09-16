@@ -158,20 +158,6 @@ public final class DynamicIslandHostingView<Content: View>: NSHostingView<Conten
         let controller = DynamicIslandController.shared
         let geometry = controller.currentGeometry
         
-        // During Drag operations (mouse button is pressed and dragging files), provide an accessible drop target
-        if FileShelfService.shared.isDropTargeted || NSEvent.pressedMouseButtons != 0 {
-            let topY = bounds.height
-            let dropHeight = max(geometry.height, 50.0)
-            let dropWidth = max(geometry.width, 340.0)
-            let minX = (bounds.width - dropWidth) / 2.0
-            let maxX = (bounds.width + dropWidth) / 2.0
-            let dropRect = NSRect(x: minX, y: topY - dropHeight, width: maxX - minX, height: dropHeight)
-            if dropRect.contains(point) {
-                return self
-            }
-        }
-        
-        // Standard normal click hit testing (exact capsule shape, zero cushion so Chrome clicks pass through)
         let topY = bounds.height
         let bottomY = topY - max(geometry.height, 30.5)
         
@@ -185,7 +171,19 @@ public final class DynamicIslandHostingView<Content: View>: NSHostingView<Conten
         let activeRect = NSRect(x: minX, y: bottomY, width: maxX - minX, height: topY - bottomY)
         
         if activeRect.contains(point) {
-            return super.hitTest(point) ?? self
+            return super.hitTest(point)
+        }
+        
+        // During Drag operations (dragging files from Finder), provide an accessible drop target
+        if FileShelfService.shared.isDropTargeted {
+            let dropHeight = max(geometry.height, 50.0)
+            let dropWidth = max(geometry.width, 340.0)
+            let dMinX = (bounds.width - dropWidth) / 2.0
+            let dMaxX = (bounds.width + dropWidth) / 2.0
+            let dropRect = NSRect(x: dMinX, y: topY - dropHeight, width: dMaxX - dMinX, height: dropHeight)
+            if dropRect.contains(point) {
+                return self
+            }
         }
         
         return nil

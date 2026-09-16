@@ -18,6 +18,15 @@ cp .build/release/MacBookNotch "$MACOS_DIR/MacBookNotch"
 chmod +x "$MACOS_DIR/MacBookNotch"
 
 cp Resources/Info.plist "$CONTENTS_DIR/Info.plist"
+cp Resources/AppIcon.icns "$RESOURCES_DIR/AppIcon.icns"
+cp Resources/AppIcon.png "$RESOURCES_DIR/AppIcon.png"
+
+echo "🔏 Signing App Bundle..."
+codesign --force --deep --sign - "$APP_DIR"
+
+echo "🎨 Stamping App Icon & registering with LaunchServices..."
+swift -e "import AppKit; if let img = NSImage(contentsOfFile: \"Resources/AppIcon.icns\") { NSWorkspace.shared.setIcon(img, forFile: \"$APP_DIR\", options: []) }"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP_DIR" || true
 
 echo "🗜️ Creating Zip Archive..."
 cd ./build

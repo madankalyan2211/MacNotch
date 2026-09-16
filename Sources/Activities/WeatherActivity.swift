@@ -5,7 +5,7 @@ public final class WeatherActivity: DynamicIslandActivity, ObservableObject {
     public let id: String
     public let type: ActivityType = .weather
     public let priority: ActivityPriority = .ambient
-    public var timeoutDuration: TimeInterval? = nil
+    public var timeoutDuration: TimeInterval? = 60.0 // Stays visible for 1 minute then auto-collapses to idle notch
     
     @Published public var weather: WeatherData
     

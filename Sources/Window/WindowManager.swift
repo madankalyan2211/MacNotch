@@ -157,6 +157,14 @@ public final class WindowManager: ObservableObject {
             let mouseLoc = NSEvent.mouseLocation
             
             if self.controller.state == .expanded {
+                // NEVER dismiss when displaying signature hello or pending permissions onboarding
+                if self.controller.activeActivity is HelloSignatureActivity {
+                    return
+                }
+                if self.controller.activeActivity is PermissionsActivity && !PermissionsService.shared.allGranted {
+                    return
+                }
+                
                 let winFrame = self.window?.frame ?? .zero
                 let geometry = self.controller.currentGeometry
                 let mainWidth = max(geometry.width, 160)
@@ -175,9 +183,16 @@ public final class WindowManager: ObservableObject {
         
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { // Escape key
-                if self?.controller.state == .expanded {
+                if let controller = self?.controller, controller.state == .expanded {
+                    // Do not close with Escape when viewing signature hello or pending permissions
+                    if controller.activeActivity is HelloSignatureActivity {
+                        return event
+                    }
+                    if controller.activeActivity is PermissionsActivity && !PermissionsService.shared.allGranted {
+                        return event
+                    }
                     DispatchQueue.main.async {
-                        self?.controller.handleIslandTap()
+                        controller.handleIslandTap()
                     }
                     return nil
                 }
@@ -354,7 +369,7 @@ public final class WindowManager: ObservableObject {
         let screenFrame = notchInfo.screenFrame
         
         let windowWidth: CGFloat = 680
-        let windowHeight: CGFloat = 280
+        let windowHeight: CGFloat = 380
         let windowX = screenFrame.midX - (windowWidth / 2.0)
         let windowY = screenFrame.maxY - windowHeight
         
@@ -430,8 +445,6 @@ public final class WindowManager: ObservableObject {
     }
     
     private func setupObservers() {
-        SiriMonitorService.shared.startMonitoring()
-        
         // Observe display changes to re-center window canvas if screen resolution/monitor changes
         controller.displayManager.$currentNotchInfo
             .receive(on: DispatchQueue.main)
@@ -456,7 +469,7 @@ public final class WindowManager: ObservableObject {
         let screenFrame = notchInfo.screenFrame
         
         let windowWidth: CGFloat = 680
-        let windowHeight: CGFloat = 280
+        let windowHeight: CGFloat = 380
         let notchCenterX = notchInfo.hasPhysicalNotch ? (notchInfo.notchOrigin.x + (notchInfo.notchSize.width / 2.0)) : screenFrame.midX
         let windowX = notchCenterX - (windowWidth / 2.0)
         let windowY = screenFrame.maxY - windowHeight
@@ -472,7 +485,7 @@ public final class WindowManager: ObservableObject {
             let settingsView = SettingsView(controller: controller)
             let hosting = NSHostingView(rootView: settingsView)
             let win = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 540, height: 460),
+                contentRect: NSRect(x: 0, y: 0, width: 630, height: 570),
                 styleMask: [.titled, .closable, .miniaturizable],
                 backing: .buffered,
                 defer: false

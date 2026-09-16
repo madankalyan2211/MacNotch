@@ -10,194 +10,245 @@ public struct DebugControlView: View {
     }
     
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                // Motion Speed Multiplier (Slow-Mo debugging)
-                VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 16) {
+            // Motion Speed Multiplier (Slow-Mo debugging)
+            SettingsCard(
+                icon: "hare.fill",
+                iconGradient: [Color.orange, Color.red],
+                title: "Animation & Motion Speed",
+                subtitle: "Slow down motion physics to inspect fluid spring transitions"
+            ) {
+                VStack(spacing: 12) {
                     HStack {
-                        Text("Animation Speed")
-                            .font(.headline)
+                        Text("Current Speed Multiplier:")
+                            .font(.system(size: 12, weight: .medium))
                         Spacer()
                         Text("\(String(format: "%.2fx", animConfig.speedMultiplier))")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                            .foregroundColor(.accentColor)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 3)
+                            .background(Color.accentColor.opacity(0.12))
+                            .clipShape(Capsule())
                     }
                     
                     HStack(spacing: 8) {
-                        speedButton(label: "0.25x (Slow-Mo)", value: 0.25)
-                        speedButton(label: "0.5x", value: 0.5)
-                        speedButton(label: "1.0x (Normal)", value: 1.0)
-                        speedButton(label: "2.0x (Fast)", value: 2.0)
+                        speedButton(label: "0.25x Slow-Mo", value: 0.25)
+                        speedButton(label: "0.5x Half", value: 0.5)
+                        speedButton(label: "1.0x Normal", value: 1.0)
+                        speedButton(label: "2.0x Fast", value: 2.0)
                     }
                 }
-                
-                Divider()
-                
-                // Spring Physics Tuning
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Spring Physics Tuning")
-                        .font(.headline)
-                    
-                    VStack(spacing: 6) {
+            }
+            
+            // Spring Physics Tuning
+            SettingsCard(
+                icon: "waveform.path",
+                iconGradient: [Color.purple, Color.blue],
+                title: "Spring Physics Engine Tuning",
+                subtitle: "Adjust response curves and damping ratios in real-time"
+            ) {
+                VStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Expansion Response: \(String(format: "%.2f", animConfig.expansionResponse))s")
-                                .font(.caption)
+                            Text("Expansion Response Time")
+                                .font(.system(size: 12, weight: .medium))
                             Spacer()
+                            Text("\(String(format: "%.2f", animConfig.expansionResponse))s")
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.secondary)
                         }
                         Slider(value: $animConfig.expansionResponse, in: 0.15...0.70, step: 0.01)
                     }
                     
-                    VStack(spacing: 6) {
+                    Divider().opacity(0.4)
+                    
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Expansion Damping: \(String(format: "%.2f", animConfig.expansionDamping))")
-                                .font(.caption)
+                            Text("Expansion Damping Ratio")
+                                .font(.system(size: 12, weight: .medium))
                             Spacer()
+                            Text("\(String(format: "%.2f", animConfig.expansionDamping))")
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.secondary)
                         }
                         Slider(value: $animConfig.expansionDamping, in: 0.40...1.0, step: 0.02)
                     }
                 }
-                
-                Divider()
-                
-                // Manual State Control
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Direct State Transition")
-                        .font(.headline)
-                    
-                    HStack(spacing: 8) {
-                        Button("Idle") { controller.transition(to: .idle) }
-                        Button("Peek") { controller.transition(to: .peek) }
-                        Button("Compact") { controller.transition(to: .compact) }
-                        Button("Expanded") { controller.transition(to: .expanded) }
-                    }
+            }
+            
+            // Manual State Transitions
+            SettingsCard(
+                icon: "arrow.triangle.swap",
+                iconGradient: [Color.cyan, Color.blue],
+                title: "Direct State Transitions",
+                subtitle: "Force Dynamic Island into specific geometry states"
+            ) {
+                HStack(spacing: 8) {
+                    stateButton(title: "Idle", icon: "capsule") { controller.transition(to: .idle) }
+                    stateButton(title: "Peek", icon: "eye.fill") { controller.transition(to: .peek) }
+                    stateButton(title: "Compact", icon: "arrow.right.and.line.vertical.and.arrow.left") { controller.transition(to: .compact) }
+                    stateButton(title: "Expanded", icon: "arrow.up.left.and.arrow.down.right") { controller.transition(to: .expanded) }
                 }
-                
-                Divider()
-                
-                // Activities Simulation
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Morphing Activities")
-                        .font(.headline)
+            }
+            
+            // Interactive Activities Simulation
+            SettingsCard(
+                icon: "sparkles.rectangle.stack.fill",
+                iconGradient: [Color.pink, Color.purple],
+                title: "Live Activity Simulation",
+                subtitle: "Trigger sample live activities into the notch pipeline"
+            ) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    simButton(title: "Now Playing", icon: "music.note", color: .pink) {
+                        let music = MusicActivity(title: "Blinding Lights", artist: "The Weeknd", isPlaying: true)
+                        controller.activityManager.presentActivity(music)
+                    }
                     
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                        Button("🎙 Hey Siri Animation") {
-                            let siri = SiriActivity()
-                            controller.activityManager.presentActivity(siri)
-                        }
-                        
-                        Button("🎵 Now Playing (Music)") {
-                            let music = MusicActivity(
-                                title: "Blinding Lights",
-                                artist: "The Weeknd",
-                                isPlaying: true
-                            )
-                            controller.activityManager.presentActivity(music)
-                        }
-                        
-                        Button("⏱ Countdown Timer (5:00)") {
-                            TimerService.shared.startTimer(duration: 300, label: "Tea Timer")
-                        }
-                        
-                        Button("📋 Clipboard Copy") {
-                            ClipboardService.shared.simulateCopy(text: "https://apple.com/macbook-pro-16")
-                        }
-                        
-                        Button("🔊 Volume HUD 80%") {
-                            SystemHUDService.shared.triggerVolumeHUD(level: 0.80)
-                        }
-                        
-                        Button("☀️ Brightness HUD 75%") {
-                            SystemHUDService.shared.triggerBrightnessHUD(level: 0.75)
-                        }
-                        
-                        Button("⚡️ MagSafe Connected") {
-                            BatteryService.shared.simulateBattery(percentage: 95, isCharging: true)
-                        }
-                        
-                        Button("🪫 Low Battery Warning (15%)") {
-                            BatteryService.shared.simulateBattery(percentage: 15, isCharging: false)
-                        }
-                        
-                        Button("🚨 Critical Battery Warning (8%)") {
-                            BatteryService.shared.simulateBattery(percentage: 8, isCharging: false)
-                        }
-                        
-                        Button("🔤 Caps Lock Toggle HUD") {
-                            CapsLockService.shared.simulateToggle()
-                        }
-                        
-                        Button("🔒 Test Locked Symbol") {
-                            LockStateService.shared.triggerManualState(isLocked: true)
-                        }
-                        
-                        Button("🔓 Test Unlocked Symbol") {
-                            LockStateService.shared.triggerManualState(isLocked: false)
-                        }
-                        
-                        Button("☕️ Toggle Caffeine (Keep Awake)") {
-                            CaffeineService.shared.toggle()
+                    simButton(title: "Timer (5:00)", icon: "timer", color: .orange) {
+                        TimerService.shared.startTimer(duration: 300, label: "Tea Timer")
+                    }
+                    
+                    simButton(title: "Clipboard Copy", icon: "doc.on.clipboard.fill", color: .purple) {
+                        ClipboardService.shared.simulateCopy(text: "https://apple.com/macbook-pro")
+                    }
+                    
+                    simButton(title: "Volume 80%", icon: "speaker.wave.3.fill", color: .blue) {
+                        SystemHUDService.shared.triggerVolumeHUD(level: 0.80)
+                    }
+                    
+                    simButton(title: "Brightness 75%", icon: "sun.max.fill", color: .yellow) {
+                        SystemHUDService.shared.triggerBrightnessHUD(level: 0.75)
+                    }
+                    
+                    simButton(title: "MagSafe Connected", icon: "bolt.batteryblock.fill", color: .green) {
+                        BatteryService.shared.simulateBattery(percentage: 95, isCharging: true)
+                    }
+                    
+                    simButton(title: "Low Battery 15%", icon: "battery.25", color: .orange) {
+                        BatteryService.shared.simulateBattery(percentage: 15, isCharging: false)
+                    }
+                    
+                    simButton(title: "Caps Lock Toggle", icon: "capslock.fill", color: .teal) {
+                        CapsLockService.shared.simulateToggle()
+                    }
+                    
+                    simButton(title: "Screen Locked", icon: "lock.fill", color: .gray) {
+                        LockStateService.shared.triggerManualState(isLocked: true)
+                    }
+                    
+                    simButton(title: "Toggle Caffeine", icon: "cup.and.saucer.fill", color: .brown) {
+                        CaffeineService.shared.toggle()
+                    }
+                    
+                    simButton(title: "Live Weather (1 Min)", icon: "cloud.sun.fill", color: .cyan) {
+                        let weatherAct = WeatherActivity(weather: WeatherService.shared.currentWeather)
+                        controller.activityManager.presentActivity(weatherAct)
+                        if controller.state == .idle || controller.state == .peek {
+                            controller.transition(to: .compact)
                         }
                     }
-                }
-                
-                Divider()
-                
-                // Motion Transition Sequences
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Motion Sequence & Interruption Tests")
-                        .font(.headline)
                     
-                    VStack(spacing: 8) {
-                        Button("🔀 Music ➔ Timer Morph") {
-                            let music = MusicActivity(title: "Starboy", artist: "The Weeknd")
-                            controller.activityManager.presentActivity(music)
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                                TimerService.shared.startTimer(duration: 60, label: "Focus")
-                            }
+                    simButton(title: "⚽️ Premier League", icon: "soccerball", color: .red) {
+                        if let match = SportsService.shared.availableMatches.first(where: { $0.sport == .football }) {
+                            SportsService.shared.pinMatch(match)
                         }
-                        .frame(maxWidth: .infinity)
-                        
-                        Button("⚡️ Music + Interrupted by Volume + Restore") {
-                            let music = MusicActivity(title: "Blinding Lights", artist: "The Weeknd")
-                            controller.activityManager.presentActivity(music)
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                                SystemHUDService.shared.triggerVolumeHUD(level: 0.65)
-                            }
+                    }
+                    
+                    simButton(title: "🏀 NBA (LAL vs GSW)", icon: "basketball.fill", color: .orange) {
+                        if let match = SportsService.shared.availableMatches.first(where: { $0.sport == .basketball }) {
+                            SportsService.shared.pinMatch(match)
                         }
-                        .frame(maxWidth: .infinity)
-                        
-                        Button("🌪 Rapid Multi-Activity Stress Test") {
-                            controller.activityManager.clearAllActivities()
-                            
-                            let music = MusicActivity(title: "Save Your Tears", artist: "The Weeknd")
-                            controller.activityManager.presentActivity(music)
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                ClipboardService.shared.simulateCopy(text: "swift build -c release")
-                            }
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-                                SystemHUDService.shared.triggerVolumeHUD(level: 0.9)
-                            }
-                            
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-                                let bat = BatteryActivity(percentage: 100, isCharging: true)
-                                controller.activityManager.presentActivity(bat)
-                            }
+                    }
+                    
+                    simButton(title: "🏎️ F1 Monaco GP", icon: "flag.checkered", color: .blue) {
+                        if let match = SportsService.shared.availableMatches.first(where: { $0.sport == .formula1 }) {
+                            SportsService.shared.pinMatch(match)
                         }
-                        .frame(maxWidth: .infinity)
-                        
-                        Button("🧹 Reset / Clear All") {
-                            controller.activityManager.clearAllActivities()
-                            TimerService.shared.stopTimer()
+                    }
+                    
+                    simButton(title: "🏏 Cricket (IND vs AUS)", icon: "cricket.ball.fill", color: .green) {
+                        if let match = SportsService.shared.availableMatches.first(where: { $0.sport == .cricket }) {
+                            SportsService.shared.pinMatch(match)
                         }
-                        .frame(maxWidth: .infinity)
+                    }
+                    
+                    simButton(title: "⚡️ Simulate Goal / Score", icon: "bolt.fill", color: .yellow) {
+                        SportsService.shared.simulateScoreEvent()
+                    }
+                    
+                    simButton(title: "⏰ Scheduled (Today 8 PM)", icon: "clock.fill", color: .cyan) {
+                        if let scheduled = SportsService.shared.availableMatches.first(where: { $0.isScheduled }) {
+                            SportsService.shared.pinMatch(scheduled)
+                        }
+                    }
+                    
+                    simButton(title: "🔴 Live (Your Fav Team)", icon: "play.circle.fill", color: .red) {
+                        if let live = SportsService.shared.availableMatches.first(where: { $0.isLive }) {
+                            SportsService.shared.pinMatch(live)
+                        }
+                    }
+                    
+                    simButton(title: "✍️ Hello (Cursive)", icon: "pencil.tip", color: .pink) {
+                        controller.triggerHelloSignature(style: .classicCursive)
+                    }
+                    
+                    simButton(title: "⚡️ Hello (Neon Aurora)", icon: "sparkles", color: .cyan) {
+                        controller.triggerHelloSignature(style: .neonAurora)
+                    }
+                    
+                    simButton(title: "💎 Hello (Liquid Glass)", icon: "cube.transparent", color: .purple) {
+                        controller.triggerHelloSignature(style: .liquidGlass)
+                    }
+                    
+                    simButton(title: "🛡️ Permissions Setup", icon: "shield.lefthalf.filled", color: .blue) {
+                        controller.triggerPermissionsOnboarding()
                     }
                 }
             }
-            .padding()
+            
+            // Motion Transition Sequences & Stress Test
+            SettingsCard(
+                icon: "bolt.badge.clock.fill",
+                iconGradient: [Color.indigo, Color.purple],
+                title: "Stress & Interruption Tests",
+                subtitle: "Simulate concurrent activities and rapid state switching"
+            ) {
+                VStack(spacing: 8) {
+                    Button(action: {
+                        let music = MusicActivity(title: "Starboy", artist: "The Weeknd")
+                        controller.activityManager.presentActivity(music)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                            TimerService.shared.startTimer(duration: 60, label: "Focus")
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.left.arrow.right")
+                            Text("Music ➔ Timer Morph Sequence")
+                            Spacer()
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
+                    
+                    Button(action: {
+                        controller.activityManager.clearAllActivities()
+                        TimerService.shared.stopTimer()
+                    }) {
+                        HStack {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                            Text("Clear All Dynamic Island Activities")
+                                .foregroundColor(.red)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
         }
     }
     
@@ -207,12 +258,49 @@ public struct DebugControlView: View {
             animConfig.speedMultiplier = value
         }) {
             Text(label)
-                .font(.system(size: 11, weight: animConfig.speedMultiplier == value ? .bold : .regular))
-                .foregroundColor(animConfig.speedMultiplier == value ? .black : .primary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(animConfig.speedMultiplier == value ? Color.accentColor : Color.secondary.opacity(0.15))
+                .font(.system(size: 11, weight: animConfig.speedMultiplier == value ? .bold : .medium))
+                .foregroundColor(animConfig.speedMultiplier == value ? .white : .primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(animConfig.speedMultiplier == value ? Color.accentColor : Color.primary.opacity(0.06))
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private func stateButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.primary.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private func simButton(title: String, icon: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(color)
+                    .frame(width: 16)
+                Text(title)
+                    .font(.system(size: 11.5, weight: .medium))
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.primary.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(.plain)
     }

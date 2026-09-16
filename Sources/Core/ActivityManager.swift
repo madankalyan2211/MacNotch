@@ -70,8 +70,16 @@ public final class ActivityManager: ObservableObject {
         // Resolve new active activity (Weather is strictly suppressed if any non-weather activity exists)
         let newActive: (any DynamicIslandActivity)?
         if activity.type != .weather {
-            if let previous = previousActive, previous.priority > activity.priority {
-                newActive = previous
+            if let previous = previousActive {
+                if previous.id == "activity.hello" && activity.id != "activity.permissions" {
+                    newActive = previous
+                } else if previous.id == "activity.permissions" && !PermissionsService.shared.allGranted {
+                    newActive = previous
+                } else if previous.priority > activity.priority {
+                    newActive = previous
+                } else {
+                    newActive = activity
+                }
             } else {
                 newActive = activity
             }
@@ -85,12 +93,11 @@ public final class ActivityManager: ObservableObject {
         }
         self.objectWillChange.send()
         
-        if previousActive?.id != newActive?.id {
-            self.onActivityChanged?(previousActive, newActive)
-        }
+        self.onActivityChanged?(previousActive, newActive)
         
         // Schedule auto-timeout if configured using .common RunLoop mode
         if let timeout = activity.timeoutDuration {
+            timeoutTimers[activity.id]?.invalidate()
             let timer = Timer(timeInterval: timeout, repeats: false) { [weak self] _ in
                 self?.removeActivity(id: activity.id)
             }
@@ -131,6 +138,12 @@ public final class ActivityManager: ObservableObject {
     /// Temporarily makes an activity the active foreground activity for `duration` seconds,
     /// then cleanly removes it and smoothly restores foreground focus to `fallbackId` (e.g. Music).
     public func promoteTemporarily(activity: any DynamicIslandActivity, duration: TimeInterval, fallbackId: String?) {
+        if let current = activeActivity {
+            if current.id == "activity.hello" || (current.id == "activity.permissions" && !PermissionsService.shared.allGranted) {
+                return
+            }
+        }
+        
         // Invalidate any existing timeout timer for this activity
         timeoutTimers[activity.id]?.invalidate()
         timeoutTimers.removeValue(forKey: activity.id)

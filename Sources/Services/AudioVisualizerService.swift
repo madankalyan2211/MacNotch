@@ -128,7 +128,8 @@ public final class AudioVisualizerService: ObservableObject {
     private func updatePhysicsStep() {
         guard isEnabled else { return }
         
-        let active = isAudioActive || MediaService.shared.isPlaybackActive
+        let isTabVisible = MediaService.shared.currentTrack.isTabVisibleOnScreen
+        let active = (isAudioActive || MediaService.shared.isPlaybackActive) && !isTabVisible
         phase += 0.08
         
         if active {

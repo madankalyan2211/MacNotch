@@ -31,6 +31,7 @@ public final class DynamicIslandController: ObservableObject {
     @Published public var isLockHUDEnabled: Bool = true
     @Published public var isCaffeineHUDEnabled: Bool = true
     @Published public var isWeatherEnabled: Bool = true
+    @Published public var isSportsEnabled: Bool = true
     @Published public var isNativeHUDSuppressionEnabled: Bool = true
     
     private var autoCollapseTimer: Timer?
@@ -61,7 +62,9 @@ public final class DynamicIslandController: ObservableObject {
                     self.idleWeatherTimer?.invalidate()
                     self.idleWeatherTimer = nil
                 }
-                if self.state == .idle || self.state == .peek {
+                if (newAct is PermissionsActivity || newAct is HelloSignatureActivity) {
+                    self.transition(to: .expanded)
+                } else if (self.state == .idle || self.state == .peek) {
                     self.transition(to: .compact)
                 } else if (oldAct is HelloSignatureActivity || oldAct is ClipboardActivity) && (self.state == .expanded) {
                     self.transition(to: .compact)
@@ -84,8 +87,10 @@ public final class DynamicIslandController: ObservableObject {
             .sink { [weak self] newActivity in
                 guard let self = self else { return }
                 self.activeActivity = newActivity
-                if newActivity != nil {
-                    if self.state == .idle || self.state == .peek {
+                if let newActivity = newActivity {
+                    if (newActivity is PermissionsActivity || newActivity is HelloSignatureActivity) {
+                        self.transition(to: .expanded)
+                    } else if (self.state == .idle || self.state == .peek) {
                         self.transition(to: .compact)
                     } else {
                         withAnimation(self.animationEngine.morphSpring) {
@@ -117,6 +122,17 @@ public final class DynamicIslandController: ObservableObject {
             .sink { [weak self] (track, isPlaying) in
                 guard let self = self, self.isMusicEnabled else { return }
                 
+                // Only show dynamic pill if the media tab is NOT directly visible on the current screen
+                let isBrowserMedia = ["YouTube", "Netflix", "JioHotstar", "JioCinema", "Hotstar"].contains(track.sourceApp)
+                let shouldSuppressBecauseVisible = isBrowserMedia && track.isTabVisibleOnScreen
+                
+                if shouldSuppressBecauseVisible {
+                    if self.state != .expanded, self.activityManager.getActivity(id: "activity.music") != nil {
+                        self.activityManager.removeActivity(id: "activity.music")
+                    }
+                    return
+                }
+                
                 if let existing = self.activityManager.getActivity(id: "activity.music") as? MusicActivity {
                     let titleChanged = (existing.title != track.title)
                     existing.title = track.title
@@ -132,8 +148,15 @@ public final class DynamicIslandController: ObservableObject {
                     existing.sourceApp = track.sourceApp
                     existing.artwork = track.artwork
                     
-                    if !isPlaying {
-                        let delay: Double = (track.sourceApp == "YouTube") ? 1.5 : 4.0
+                    if isPlaying {
+                        if self.activityManager.activeActivity?.id != existing.id {
+                            self.activityManager.presentActivity(existing)
+                        } else if self.state == .idle || self.state == .peek {
+                            self.transition(to: .compact)
+                        }
+                    } else {
+                        let isBrowserMedia = ["YouTube", "Netflix", "JioHotstar", "JioCinema", "Hotstar"].contains(track.sourceApp)
+                        let delay: Double = isBrowserMedia ? 2.0 : 4.0
                         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                             guard let self = self else { return }
                             if !MediaService.shared.isPlaybackActive {
@@ -154,6 +177,9 @@ public final class DynamicIslandController: ObservableObject {
                         artwork: track.artwork
                     )
                     self.activityManager.presentActivity(musicAct)
+                    if self.state == .idle || self.state == .peek {
+                        self.transition(to: .compact)
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -268,7 +294,7 @@ public final class DynamicIslandController: ObservableObject {
         
         // 4. System HUDs integration
         SystemHUDService.shared.onHUDTriggered = { [weak self] event in
-            guard let self = self, self.isHUDEnabled else { return }
+            guard let self = self, self.isHUDEnabled, !(self.activeActivity is PermissionsActivity) else { return }
             switch event.type {
             case .volume(let level, let isMuted):
                 guard self.isVolumeHUDEnabled else { return }
@@ -554,19 +580,16 @@ public final class DynamicIslandController: ObservableObject {
             }
         }
         
-        // 15. WhatsApp Notifications integration (disabled)
-        // WhatsAppNotificationService.shared.onMessageReceived = { [weak self] message in
-        //     guard let self = self else { return }
-        //     let waAct = WhatsAppNotificationActivity(message: message)
-        //     self.activityManager.promoteTemporarily(activity: waAct, duration: 6.5, fallbackId: nil)
-        //     self.transition(to: .compact)
-        // }
-        //
+        // 15. Live Sports Ticker integration
+        SportsService.shared.onMatchUpdated = { [weak self] match in
+            guard let self = self, self.isSportsEnabled else { return }
+            if let match = match {
+                if let existing = self.activityManager.getActivity(id: "activity.sports.\(match.id)") as? SportsActivity {
+                    existing.match = match
+                }
+            }
+        }
         // WhatsAppNotificationService.shared.onMessageDismissed = { [weak self] in
-        //     guard let self = self else { return }
-        //     self.activityManager.removeActivities(ofType: .whatsapp)
-        // }
-        
         // Initial presentation of ambient weather with 3 minutes idle delay
         if isWeatherEnabled {
             scheduleAmbientWeatherPresentation(delay: 180.0)
@@ -606,6 +629,16 @@ public final class DynamicIslandController: ObservableObject {
     public func transition(to newState: IslandPresentationState) {
         guard state != newState else { return }
         
+        // Prevent collapsing if Hello Signature or incomplete Permissions onboarding is active!
+        if (newState == .compact || newState == .idle || newState == .peek) {
+            if activeActivity is HelloSignatureActivity {
+                return
+            }
+            if activeActivity is PermissionsActivity && !PermissionsService.shared.allGranted {
+                return
+            }
+        }
+        
         autoCollapseTimer?.invalidate()
         autoCollapseTimer = nil
         
@@ -617,19 +650,11 @@ public final class DynamicIslandController: ObservableObject {
             self.updateGeometry(animated: false)
         }
         
-        // If expanded, set up auto-collapse countdown (except for interactive WhatsApp input)
-        if newState == .expanded && !(activeActivity is WhatsAppNotificationActivity) {
-            let delay = (activeActivity is HelloSignatureActivity) ? 4.5 : autoCollapseDelay
-            let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+        // If expanded, set up auto-collapse countdown (except for interactive WhatsApp input, Permissions onboarding, or Hello Signature)
+        if newState == .expanded && !(activeActivity is WhatsAppNotificationActivity) && !(activeActivity is PermissionsActivity) && !(activeActivity is HelloSignatureActivity) {
+            let timer = Timer(timeInterval: autoCollapseDelay, repeats: false) { [weak self] _ in
                 guard let self = self, self.state == .expanded else { return }
-                if self.activeActivity is HelloSignatureActivity {
-                    self.activityManager.removeActivity(id: "activity.hello")
-                    if self.activeActivity != nil {
-                        self.transition(to: .compact)
-                    } else {
-                        self.transition(to: .idle)
-                    }
-                } else if self.activeActivity != nil {
+                if self.activeActivity != nil {
                     self.transition(to: .compact)
                 } else {
                     self.transition(to: .idle)
@@ -642,6 +667,9 @@ public final class DynamicIslandController: ObservableObject {
     
     public func handleHover(isHovering: Bool) {
         self.isHovered = isHovering
+        
+        if activeActivity is HelloSignatureActivity { return }
+        if activeActivity is PermissionsActivity && !PermissionsService.shared.allGranted { return }
         
         if state == .idle && isHovering {
             transition(to: .peek)
@@ -666,14 +694,15 @@ public final class DynamicIslandController: ObservableObject {
         case .compact:
             transition(to: .expanded)
         case .expanded:
+            if activeActivity is PermissionsActivity && !PermissionsService.shared.allGranted {
+                // Keep expanded until user agrees to all permissions
+                return
+            }
             if activeActivity is HelloSignatureActivity {
-                activityManager.removeActivity(id: "activity.hello")
-                if activeActivity != nil {
-                    transition(to: .compact)
-                } else {
-                    transition(to: .idle)
-                }
-            } else if activeActivity != nil {
+                // Keep expanded until user clicks the Continue/Enjoy button
+                return
+            }
+            if activeActivity != nil {
                 transition(to: .compact)
             } else {
                 transition(to: .idle)
@@ -731,9 +760,19 @@ public final class DynamicIslandController: ObservableObject {
         }
     }
     
-    public func triggerHelloSignature() {
-        let helloAct = HelloSignatureActivity()
+    public func triggerHelloSignature(style: HelloAnimationStyle? = nil) {
+        let selectedStyle = style ?? HelloSignatureActivity.currentStyle
+        let helloAct = HelloSignatureActivity(style: selectedStyle)
         self.activityManager.presentActivity(helloAct)
         self.transition(to: .expanded)
+    }
+    
+    public func triggerPermissionsOnboarding() {
+        let permAct = PermissionsActivity()
+        self.activityManager.presentActivity(permAct)
+        self.transition(to: .expanded)
+        DispatchQueue.main.async {
+            self.transition(to: .expanded)
+        }
     }
 }

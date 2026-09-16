@@ -4,7 +4,7 @@ import CoreGraphics
 import ApplicationServices
 
 /// Service that actively intercepts hardware media keys to suppress stock macOS Volume, Brightness, and Mute HUD overlays.
-public final class NativeHUDInterceptor {
+public final class NativeHUDInterceptor: ObservableObject {
     public static let shared = NativeHUDInterceptor()
     
     @Published public private(set) var isSuppressionEnabled: Bool = true
@@ -12,13 +12,23 @@ public final class NativeHUDInterceptor {
     
     public var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var permissionPollTimer: Timer?
     
     private init() {
         checkAccessibilityPermission(prompt: false)
         start()
+        
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.checkAccessibilityPermission(prompt: false)
+        }
     }
     
     deinit {
+        stopPermissionPolling()
         stop()
     }
     
@@ -47,15 +57,48 @@ public final class NativeHUDInterceptor {
     }
     
     public func requestAccessibilityPermission() {
-        checkAccessibilityPermission(prompt: true)
-        setupEventTap()
+        let trusted = checkAccessibilityPermission(prompt: true)
+        if trusted {
+            setupEventTap()
+        } else {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+            startPermissionPolling()
+        }
+    }
+    
+    public func startPermissionPolling() {
+        stopPermissionPolling()
+        permissionPollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
+            if self.checkAccessibilityPermission(prompt: false) {
+                self.stopPermissionPolling()
+            }
+        }
+    }
+    
+    public func stopPermissionPolling() {
+        permissionPollTimer?.invalidate()
+        permissionPollTimer = nil
     }
     
     @discardableResult
     public func checkAccessibilityPermission(prompt: Bool = false) -> Bool {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: prompt] as CFDictionary
         let trusted = AXIsProcessTrustedWithOptions(options)
-        self.hasAccessibilityPermission = trusted
+        
+        DispatchQueue.main.async {
+            if self.hasAccessibilityPermission != trusted {
+                self.hasAccessibilityPermission = trusted
+            }
+            if trusted && self.isSuppressionEnabled && self.eventTap == nil {
+                self.setupEventTap()
+            }
+        }
         return trusted
     }
     

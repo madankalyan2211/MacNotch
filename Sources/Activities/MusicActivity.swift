@@ -31,6 +31,10 @@ public final class MusicActivity: DynamicIslandActivity, ObservableObject {
             return Color(red: 0.98, green: 0.18, blue: 0.35)
         } else if sourceApp == "YouTube" {
             return Color(red: 1.0, green: 0.1, blue: 0.1)
+        } else if sourceApp == "Netflix" {
+            return Color(red: 0.89, green: 0.04, blue: 0.08)
+        } else if sourceApp == "JioHotstar" || sourceApp == "Hotstar" || sourceApp == "JioCinema" {
+            return Color(red: 0.05, green: 0.45, blue: 1.0)
         }
         return Color(red: 0.18, green: 0.82, blue: 0.35)
     }
@@ -42,10 +46,10 @@ public final class MusicActivity: DynamicIslandActivity, ObservableObject {
     
     public var compactPreferredWidth: CGFloat { 248 }
     public var expandedPreferredSize: CGSize {
-        if sourceApp == "YouTube" {
-            return CGSize(width: 380, height: 95)
+        if duration > 0 {
+            return CGSize(width: 390, height: 165)
         }
-        return CGSize(width: 390, height: 165)
+        return CGSize(width: 380, height: 140)
     }
     
     private var playbackTimer: Timer?
@@ -137,6 +141,24 @@ public struct MusicMinimalBubbleView: View {
                         .font(.system(size: 9, weight: .bold))
                         .foregroundColor(.white)
                 }
+            } else if activity.sourceApp == "Netflix" {
+                ZStack {
+                    Color.black
+                    Text("N")
+                        .font(.system(size: 11, weight: .black, design: .rounded))
+                        .foregroundColor(Color(red: 0.89, green: 0.04, blue: 0.08))
+                }
+            } else if activity.sourceApp == "JioHotstar" || activity.sourceApp == "Hotstar" || activity.sourceApp == "JioCinema" {
+                ZStack {
+                    LinearGradient(
+                        colors: [Color(red: 0.05, green: 0.45, blue: 1.0), Color(red: 0.0, green: 0.15, blue: 0.65)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "play.tv.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white)
+                }
             } else {
                 ZStack {
                     LinearGradient(
@@ -175,6 +197,24 @@ public struct MusicCompactLeadingView: View {
                     )
                     Image(systemName: "play.rectangle.fill")
                         .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            } else if activity.sourceApp == "Netflix" {
+                ZStack {
+                    Color.black
+                    Text("N")
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundColor(Color(red: 0.89, green: 0.04, blue: 0.08))
+                }
+            } else if activity.sourceApp == "JioHotstar" || activity.sourceApp == "Hotstar" || activity.sourceApp == "JioCinema" {
+                ZStack {
+                    LinearGradient(
+                        colors: [Color(red: 0.05, green: 0.45, blue: 1.0), Color(red: 0.0, green: 0.15, blue: 0.65)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    Image(systemName: "play.tv.fill")
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.white)
                 }
             } else {
@@ -244,6 +284,16 @@ public struct MusicExpandedCardView: View {
     public let controller: DynamicIslandController
     public let namespace: Namespace.ID?
     
+    private var sourceAppFormatted: String {
+        switch activity.sourceApp {
+        case "YouTube": return "YouTube • Google Chrome"
+        case "Netflix": return "Netflix • Google Chrome"
+        case "JioHotstar": return "JioHotstar • Google Chrome"
+        case "JioCinema": return "JioCinema • Google Chrome"
+        default: return activity.sourceApp
+        }
+    }
+    
     public var body: some View {
         VStack(spacing: 12) {
             // Header Info & Artwork
@@ -263,6 +313,24 @@ public struct MusicExpandedCardView: View {
                             )
                             Image(systemName: "play.rectangle.fill")
                                 .font(.system(size: 27, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                    } else if activity.sourceApp == "Netflix" {
+                        ZStack {
+                            Color.black
+                            Text("N")
+                                .font(.system(size: 32, weight: .black, design: .rounded))
+                                .foregroundColor(Color(red: 0.89, green: 0.04, blue: 0.08))
+                        }
+                    } else if activity.sourceApp == "JioHotstar" || activity.sourceApp == "Hotstar" || activity.sourceApp == "JioCinema" {
+                        ZStack {
+                            LinearGradient(
+                                colors: [Color(red: 0.05, green: 0.45, blue: 1.0), Color(red: 0.0, green: 0.15, blue: 0.65)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                            Image(systemName: "play.tv.fill")
+                                .font(.system(size: 24, weight: .semibold))
                                 .foregroundColor(.white)
                         }
                     } else if activity.sourceApp == "Apple Music" {
@@ -309,7 +377,7 @@ public struct MusicExpandedCardView: View {
                         .foregroundColor(.white.opacity(0.65))
                         .lineLimit(1)
                     
-                    Text(activity.sourceApp == "YouTube" ? "YouTube • Google Chrome" : activity.sourceApp)
+                    Text(sourceAppFormatted)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundColor(.white.opacity(0.4))
                 }
@@ -321,46 +389,45 @@ public struct MusicExpandedCardView: View {
                     .matchedGeometryIfAvailable(id: "music_wave_\(activity.id)", in: namespace)
             }
             
-            // Only show Scrubber & Playback controls for native music apps (Spotify & Apple Music)
-            if activity.sourceApp != "YouTube" {
-                // Interactive Scrubber Timeline Bar
+            // Interactive Scrubber Timeline Bar (when duration is available)
+            if activity.duration > 0 {
                 MusicScrubberView(activity: activity)
-                
-                // Playback Controls
-                HStack(spacing: 36) {
-                    Button(action: {
-                        MediaService.shared.previousTrack()
-                    }) {
-                        Image(systemName: "backward.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.85))
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button(action: {
-                        MediaService.shared.togglePlayPause()
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 38, height: 38)
-                            
-                            Image(systemName: activity.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.black)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    
-                    Button(action: {
-                        MediaService.shared.nextTrack()
-                    }) {
-                        Image(systemName: "forward.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.85))
-                    }
-                    .buttonStyle(.plain)
+            }
+            
+            // Playback Controls (available across all media sources)
+            HStack(spacing: 36) {
+                Button(action: {
+                    MediaService.shared.previousTrack()
+                }) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
                 }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    MediaService.shared.togglePlayPause()
+                }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 38, height: 38)
+                        
+                        Image(systemName: activity.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.black)
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    MediaService.shared.nextTrack()
+                }) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 4)
