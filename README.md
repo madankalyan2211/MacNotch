@@ -8,15 +8,20 @@
 [![macOS](https://img.shields.io/badge/macOS-13.0%2B%20Ventura%20%7C%20Sonoma%20%7C%20Sequoia-black?style=for-the-badge&logo=apple&logoColor=white)](https://apple.com/macos)
 [![Swift](https://img.shields.io/badge/Swift-5.9%2B-FA7343?style=for-the-badge&logo=swift&logoColor=white)](https://swift.org)
 [![Architecture](https://img.shields.io/badge/Arch-Apple%20Silicon%20%7C%20Intel-007AFF?style=for-the-badge)](https://apple.com)
+[![GitHub Stars](https://img.shields.io/github/stars/madankalyan2211/MacBook-Notch?style=for-the-badge&color=FFD700)](https://github.com/madankalyan2211/MacBook-Notch/stargazers)
 [![License](https://img.shields.io/badge/License-MIT-34C759?style=for-the-badge)](LICENSE)
 
 <p align="center">
   <b>Transform your MacBook's camera notch into a living, fluid, interactive hub.</b><br/>
-  Featuring real-time media controls with reactive audio visualizers, active call radar, drag-and-drop file shelf, live sports scores, smart clipboard history, and seamless system HUD replacements.
+  Real-time media controls with audio visualizers, active call radar, drag-and-drop file shelf, live sports scores, smart clipboard history, and seamless system HUD replacements.
 </p>
 
 <p align="center">
-  <a href="#-download--installation"><b>📦 Download .DMG</b></a> •
+  ⭐ <b>If you find MacNotch useful, please star the repository!</b> ⭐
+</p>
+
+<p align="center">
+  <a href="#-download--installation-steps"><b>📦 Download & Install</b></a> •
   <a href="#-features--capabilities"><b>✨ Features</b></a> •
   <a href="#%EF%B8%8F-keyboard-shortcuts"><b>⌨️ Shortcuts</b></a> •
   <a href="#%EF%B8%8F-building-from-source"><b>🛠️ Build from Source</b></a> •
@@ -40,28 +45,42 @@ MacBook displays with camera notches have plenty of unused screen real estate ar
 
 ---
 
-## 📦 Download & Installation
+## 📦 Download & Installation Steps
 
-### Option 1: Direct DMG Download (Recommended)
+### Step 1: Download MacNotch
+👉 Download the latest **[`MacBookNotch.zip`](https://github.com/madankalyan2211/MacBook-Notch/releases/latest/download/MacBookNotch.zip)** from GitHub Releases.
 
-1. Download the latest **[`MacBookNotch.dmg`](https://github.com/madankalyan2211/MacBook-Notch/releases/latest)**.
-2. Double-click the downloaded **`MacBookNotch.dmg`**.
-3. **Drag `MacBookNotch` into your `Applications` folder**.
-4. Open **Applications** in Finder, **Right-click (Control-click) `MacBookNotch`**, and select **Open** (required for first-launch gatekeeper approval).
+---
 
+### Step 2: Unzip & Move to Applications
+1. Double-click the downloaded **`MacBookNotch.zip`** to extract **`MacBookNotch.app`**.
+2. **Drag `MacBookNotch.app` into your `Applications` folder**.
+
+---
+
+### Step 3: First-Time Launch (macOS Gatekeeper Approval)
+
+Because MacNotch is distributed open-source directly on GitHub without Mac App Store packaging, macOS will show a standard security prompt on first launch.
+
+#### ⚡️ Quick Terminal 1-Liner *(Fastest)*:
+Open **Terminal** and run:
+```bash
+xattr -cr /Applications/MacBookNotch.app
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       MacBookNotch.dmg                      │
-│                                                             │
-│       ┌───────────────┐               ┌───────────────┐     │
-│       │  [MacNotch]   │   ─────────▶  │ [Applications]│     │
-│       └───────────────┘               └───────────────┘     │
-│       MacBookNotch.app                Applications Folder   │
-└─────────────────────────────────────────────────────────────┘
-```
+Then simply double-click **MacBookNotch** to launch!
 
-> **Tip**: To launch automatically whenever your Mac starts:  
-> Open **System Settings ➔ General ➔ Login Items** and add **MacBookNotch** under *Open at Login*.
+#### 🖥️ Or via Finder / System Settings:
+1. Open **Applications** in Finder.
+2. **Right-click (or Control-click)** on `MacBookNotch` and select **Open**.
+3. In the confirmation dialog, click **Open**.
+*(If blocked: Go to **System Settings ➔ Privacy & Security**, scroll down, and click **"Open Anyway"**).*
+
+---
+
+> [!TIP]
+> **Start at Login (Recommended)**:  
+> To have MacNotch automatically start when your Mac turns on:  
+> Open **System Settings ➔ General ➔ Login Items** and add **MacBookNotch** under **"Open at Login"**.
 
 ---
 
@@ -155,15 +174,14 @@ swift build
 swift run
 ```
 
-### 3. Generate Release `.app` and `.dmg` Installer
+### 3. Generate Release `.app` and `.zip` Package
 ```bash
-# Compile Release App Bundle
+# Compile Release App Bundle with custom icon and signing
 ./build_app.sh
 
-# Generate Drag-to-Install DMG and ZIP Distribution Packages
+# Generate distribution archive
 ./package_dist.sh
 ```
-The compiled distribution installer will be generated at `./build/MacBookNotch.dmg`.
 
 ---
 
@@ -177,15 +195,15 @@ MacNotch is designed with a strict **Privacy-First** philosophy:
 
 ---
 
-## 🤝 Contributing
+## ⭐ Star History
 
-Contributions, feature ideas, and pull requests are warmly welcome!
+If you love MacNotch, please consider giving it a ⭐ on GitHub! Your support helps motivate new features and improvements.
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'feat: Add AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+<div align="center">
+  <a href="https://github.com/madankalyan2211/MacBook-Notch">
+    <img src="https://api.star-history.com/svg?repos=madankalyan2211/MacBook-Notch&type=Date" alt="Star History Chart" width="600"/>
+  </a>
+</div>
 
 ---
 
