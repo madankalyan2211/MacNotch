@@ -296,39 +296,31 @@ public final class CallMonitorService: ObservableObject {
         }
     }
     
+    private func isSiriActive() -> Bool {
+        guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+            return false
+        }
+        for win in windowList {
+            let ownerName = ((win[kCGWindowOwnerName as String] as? String) ?? "").lowercased()
+            let winTitle = ((win[kCGWindowName as String] as? String) ?? "").lowercased()
+            if ownerName == "siri" || ownerName == "sirinc" || ownerName == "assistantd" || ownerName.contains("siri") || winTitle == "siri" {
+                return true
+            }
+        }
+        return false
+    }
+
     private func detectActiveCallingApp() -> (callerName: String, appName: String, isVideo: Bool, isKnownCallApp: Bool) {
-        let isVideo = queryCameraRunningState()
-        
-        // 1. Inspect on-screen window titles for calling applications
-        if let winInfo = getActiveCallWindowTitle(isVideo: isVideo) {
-            return (winInfo.callerName, winInfo.appName, winInfo.isVideo, true)
+        // 1. Explicitly ignore system Siri / Dictation microphone activations
+        if isSiriActive() {
+            return ("Audio Call", "Audio Call", false, false)
         }
         
-        // 2. Check running applications list
-        let runningApps = NSWorkspace.shared.runningApplications
-        for app in runningApps {
-            let bundle = (app.bundleIdentifier ?? "").lowercased()
-            let name = (app.localizedName ?? "").lowercased()
-            
-            if bundle.contains("whatsapp") || name.contains("whatsapp") {
-                let partner = getLastWhatsAppPartnerName() ?? "WhatsApp Contact"
-                return (partner, isVideo ? "WhatsApp Video" : "WhatsApp Call", isVideo, true)
-            }
-            if bundle.contains("facetime") || name.contains("facetime") {
-                return ("FaceTime", isVideo ? "FaceTime Video" : "FaceTime Audio", isVideo, true)
-            }
-            if bundle.contains("zoom") || name.contains("zoom") {
-                return ("Zoom Meeting", isVideo ? "Zoom Video" : "Zoom Audio", isVideo, true)
-            }
-            if bundle.contains("teams") || name.contains("teams") {
-                return ("Microsoft Teams", isVideo ? "Teams Video" : "Teams Call", isVideo, true)
-            }
-            if bundle.contains("slack") || name.contains("slack") {
-                return ("Slack Huddle", isVideo ? "Slack Video" : "Slack Huddle", isVideo, true)
-            }
-            if bundle.contains("discord") || name.contains("discord") {
-                return ("Discord Voice", isVideo ? "Discord Video" : "Discord Voice", isVideo, true)
-            }
+        let isVideo = queryCameraRunningState()
+        
+        // 2. Inspect on-screen window titles for genuine calling applications
+        if let winInfo = getActiveCallWindowTitle(isVideo: isVideo) {
+            return (winInfo.callerName, winInfo.appName, winInfo.isVideo, true)
         }
         
         return ("Audio Call", "Audio Call", isVideo, false)
@@ -345,46 +337,91 @@ public final class CallMonitorService: ObservableObject {
             let ownerLower = ownerName.lowercased()
             let titleLower = winTitle.lowercased()
             
+            // Ignore system assistant windows
+            if ownerLower.contains("siri") || ownerLower.contains("assistantd") || titleLower == "siri" {
+                continue
+            }
+            
+            // WhatsApp Call detection
+            // A genuine WhatsApp call window contains "call" or "calling" in the window title
             if ownerLower.contains("whatsapp") {
-                var caller = winTitle.replacingOccurrences(of: "WhatsApp Call with ", with: "")
-                    .replacingOccurrences(of: "WhatsApp Call", with: "")
-                    .replacingOccurrences(of: "WhatsApp - ", with: "")
-                    .replacingOccurrences(of: "WhatsApp", with: "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if caller.isEmpty { caller = getLastWhatsAppPartnerName() ?? "WhatsApp Contact" }
-                return (caller, isVideo ? "WhatsApp Video" : "WhatsApp Call", isVideo)
+                let isCallWindow = titleLower.contains("call") || titleLower.contains("calling") || titleLower.contains("video call") || titleLower.contains("audio call")
+                if isCallWindow {
+                    var caller = winTitle.replacingOccurrences(of: "WhatsApp Video Call with ", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "WhatsApp Call with ", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "WhatsApp Video Call", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "WhatsApp Call", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "WhatsApp - ", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "WhatsApp", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "Call with ", with: "", options: .caseInsensitive)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if caller.isEmpty { caller = getLastWhatsAppPartnerName() ?? "WhatsApp Contact" }
+                    return (caller, isVideo ? "WhatsApp Video" : "WhatsApp Call", isVideo)
+                }
             }
+            
+            // FaceTime Call detection
             if ownerLower.contains("facetime") {
-                var caller = winTitle.replacingOccurrences(of: "FaceTime with ", with: "")
-                    .replacingOccurrences(of: "FaceTime - ", with: "")
-                    .replacingOccurrences(of: "FaceTime", with: "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if caller.isEmpty { caller = "FaceTime Call" }
-                return (caller, isVideo ? "FaceTime Video" : "FaceTime Audio", isVideo)
+                let isCallWindow = titleLower.contains("with") || titleLower.contains("call") || titleLower.contains("audio") || titleLower.contains("video") || titleLower.contains("connecting") || titleLower.contains("ringing") || isVideo
+                if isCallWindow {
+                    var caller = winTitle.replacingOccurrences(of: "FaceTime with ", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "FaceTime - ", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "FaceTime Call", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "FaceTime", with: "", options: .caseInsensitive)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if caller.isEmpty { caller = "FaceTime Call" }
+                    return (caller, isVideo ? "FaceTime Video" : "FaceTime Audio", isVideo)
+                }
             }
+            
+            // Zoom Meeting detection
             if ownerLower.contains("zoom") {
-                var caller = winTitle.replacingOccurrences(of: "Zoom Meeting - ", with: "")
-                    .replacingOccurrences(of: "Zoom Meeting", with: "")
-                    .replacingOccurrences(of: "Zoom", with: "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if caller.isEmpty { caller = "Zoom Meeting" }
-                return (caller, isVideo ? "Zoom Video" : "Zoom Audio", isVideo)
+                let isMeetingWindow = titleLower.contains("meeting") || titleLower.contains("webinar") || titleLower.contains("call")
+                if isMeetingWindow {
+                    var caller = winTitle.replacingOccurrences(of: "Zoom Meeting - ", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "Zoom Meeting", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "Zoom", with: "", options: .caseInsensitive)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if caller.isEmpty { caller = "Zoom Meeting" }
+                    return (caller, isVideo ? "Zoom Video" : "Zoom Audio", isVideo)
+                }
             }
+            
+            // Microsoft Teams detection
             if ownerLower.contains("teams") {
-                var caller = winTitle.replacingOccurrences(of: "Microsoft Teams - ", with: "")
-                    .replacingOccurrences(of: "Microsoft Teams", with: "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if caller.isEmpty { caller = "Microsoft Teams" }
-                return (caller, isVideo ? "Teams Video" : "Teams Call", isVideo)
+                let isCallWindow = titleLower.contains("meeting") || titleLower.contains("call") || titleLower.contains("huddle")
+                if isCallWindow {
+                    var caller = winTitle.replacingOccurrences(of: "Microsoft Teams - ", with: "", options: .caseInsensitive)
+                        .replacingOccurrences(of: "Microsoft Teams", with: "", options: .caseInsensitive)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    if caller.isEmpty { caller = "Microsoft Teams" }
+                    return (caller, isVideo ? "Teams Video" : "Teams Call", isVideo)
+                }
             }
+            
+            // Slack Huddle detection
             if ownerLower.contains("slack") && (titleLower.contains("huddle") || titleLower.contains("call")) {
                 return (winTitle.isEmpty ? "Slack Huddle" : winTitle, isVideo ? "Slack Video" : "Slack Huddle", isVideo)
             }
-            if (ownerLower.contains("chrome") || ownerLower.contains("safari")) && (titleLower.contains("meet.google.com") || titleLower.contains("meet - ") || titleLower.contains("google meet")) {
-                let caller = winTitle.replacingOccurrences(of: " - Google Chrome", with: "")
-                    .replacingOccurrences(of: " - Google Meet", with: "")
+            
+            // Google Meet detection
+            if (ownerLower.contains("chrome") || ownerLower.contains("safari") || ownerLower.contains("edge") || ownerLower.contains("brave") || ownerLower.contains("arc")) && (titleLower.contains("meet.google.com") || titleLower.contains("meet - ") || titleLower.contains("google meet")) {
+                let caller = winTitle.replacingOccurrences(of: " - Google Chrome", with: "", options: .caseInsensitive)
+                    .replacingOccurrences(of: " - Google Meet", with: "", options: .caseInsensitive)
+                    .replacingOccurrences(of: " - Safari", with: "", options: .caseInsensitive)
+                    .replacingOccurrences(of: " - Arc", with: "", options: .caseInsensitive)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 return (caller.isEmpty ? "Google Meet" : caller, isVideo ? "Meet Video" : "Google Meet", isVideo)
+            }
+            
+            // Cisco Webex detection
+            if ownerLower.contains("webex") && (titleLower.contains("meeting") || titleLower.contains("call")) {
+                return ("Webex Meeting", isVideo ? "Webex Video" : "Webex Audio", isVideo)
+            }
+            
+            // Discord Voice detection
+            if ownerLower.contains("discord") && (titleLower.contains("voice connected") || titleLower.contains("call") || isVideo) {
+                return ("Discord Voice", isVideo ? "Discord Video" : "Discord Voice", isVideo)
             }
         }
         return nil
